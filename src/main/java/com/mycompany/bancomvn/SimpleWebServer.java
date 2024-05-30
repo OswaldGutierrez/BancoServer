@@ -1,16 +1,14 @@
 package com.mycompany.bancomvn;
 
-import com.sun.net.httpserver.HttpServer;
-import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.InputStreamReader;
-import java.io.BufferedReader;
+import java.io.*;
 import java.net.InetSocketAddress;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -67,6 +65,12 @@ public class SimpleWebServer {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
+            // Manejo de solicitudes OPTIONS para CORS
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                handleOptions(exchange);
+                return;
+            }
+
             if ("POST".equals(exchange.getRequestMethod())) {
                 InputStreamReader isr = new InputStreamReader(exchange.getRequestBody(), "utf-8");
                 BufferedReader br = new BufferedReader(isr);
@@ -98,21 +102,32 @@ public class SimpleWebServer {
                     stmt.close();
 
                     String response = "Registro exitoso!";
-                    exchange.sendResponseHeaders(200, response.length());
-                    OutputStream os = exchange.getResponseBody();
-                    os.write(response.getBytes());
-                    os.close();
+                    sendResponse(exchange, 200, response);
                 } catch (SQLException e) {
                     e.printStackTrace();
                     String response = "Error al registrar el usuario.";
-                    exchange.sendResponseHeaders(500, response.length());
-                    OutputStream os = exchange.getResponseBody();
-                    os.write(response.getBytes());
-                    os.close();
+                    sendResponse(exchange, 500, response);
                 }
             } else {
-                exchange.sendResponseHeaders(405, -1); // 405 Method Not Allowed
+                sendResponse(exchange, 405, "Method Not Allowed"); // 405 Method Not Allowed
             }
+        }
+
+        private void handleOptions(HttpExchange exchange) throws IOException {
+            Headers headers = exchange.getResponseHeaders();
+            headers.add("Access-Control-Allow-Origin", "*");
+            headers.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+            headers.add("Access-Control-Allow-Headers", "Content-Type");
+            exchange.sendResponseHeaders(204, -1);
+        }
+
+        private void sendResponse(HttpExchange exchange, int statusCode, String response) throws IOException {
+            Headers headers = exchange.getResponseHeaders();
+            headers.add("Access-Control-Allow-Origin", "*");
+            exchange.sendResponseHeaders(statusCode, response.length());
+            OutputStream os = exchange.getResponseBody();
+            os.write(response.getBytes());
+            os.close();
         }
     }
 
@@ -120,6 +135,12 @@ public class SimpleWebServer {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
+            // Manejo de solicitudes OPTIONS para CORS
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                handleOptions(exchange);
+                return;
+            }
+
             if ("GET".equals(exchange.getRequestMethod())) {
                 try {
                     // Realizar la consulta SQL para obtener los registros de cliente
@@ -140,22 +161,33 @@ public class SimpleWebServer {
                     }
 
                     // Enviar la respuesta JSON al cliente
-                    exchange.getResponseHeaders().set("Content-Type", "application/json");
-                    exchange.sendResponseHeaders(200, jsonArray.toString().getBytes().length);
-                    OutputStream os = exchange.getResponseBody();
-                    os.write(jsonArray.toString().getBytes());
-                    os.close();
+                    String jsonResponse = jsonArray.toString();
+                    sendResponse(exchange, 200, jsonResponse);
                 } catch (SQLException e) {
                     e.printStackTrace();
                     String response = "Error al obtener los registros de cliente.";
-                    exchange.sendResponseHeaders(500, response.length());
-                    OutputStream os = exchange.getResponseBody();
-                    os.write(response.getBytes());
-                    os.close();
+                    sendResponse(exchange, 500, response);
                 }
             } else {
-                exchange.sendResponseHeaders(405, -1); // 405 Method Not Allowed
+                sendResponse(exchange, 405, "Method Not Allowed"); // 405 Method Not Allowed
             }
+        }
+
+        private void handleOptions(HttpExchange exchange) throws IOException {
+            Headers headers = exchange.getResponseHeaders();
+            headers.add("Access-Control-Allow-Origin", "*");
+            headers.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+            headers.add("Access-Control-Allow-Headers", "Content-Type");
+            exchange.sendResponseHeaders(204, -1);
+        }
+
+        private void sendResponse(HttpExchange exchange, int statusCode, String response) throws IOException {
+            Headers headers = exchange.getResponseHeaders();
+            headers.add("Access-Control-Allow-Origin", "*");
+            exchange.sendResponseHeaders(statusCode, response.length());
+            OutputStream os = exchange.getResponseBody();
+            os.write(response.getBytes());
+            os.close();
         }
     }
 }

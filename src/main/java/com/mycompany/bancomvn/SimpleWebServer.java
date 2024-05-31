@@ -39,6 +39,7 @@ public class SimpleWebServer {
         server.createContext("/registro", new registroHandler());
         server.createContext("/traer-registro", new traerRegistroHandler());
         server.createContext("/login", new loginHandler());
+        server.createContext("/consignar", new consignarHandler());
 
         // Configurar el executor (null indica que usará el executor por defecto)
         server.setExecutor(null);
@@ -61,7 +62,6 @@ public class SimpleWebServer {
         }
     }
 
-    
     // Crear una clase que implementa HttpHandler para manejar el registro
     static class registroHandler implements HttpHandler {
 
@@ -264,6 +264,79 @@ public class SimpleWebServer {
             exchange.sendResponseHeaders(statusCode, response.length());
             OutputStream os = exchange.getResponseBody();
             os.write(response.getBytes());
+            os.close();
+        }
+    }
+
+    static class consignarHandler implements HttpHandler {
+
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            // Manejo de solicitudes OPTIONS para CORS
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                handleOptions(exchange);
+                return;
+            }
+
+            if ("POST".equals(exchange.getRequestMethod())) {
+                InputStreamReader isr = new InputStreamReader(exchange.getRequestBody(), "utf-8");
+                BufferedReader br = new BufferedReader(isr);
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = br.readLine()) != null) {
+                    sb.append(line);
+                }
+                br.close();
+                isr.close();
+
+                String requestBody = sb.toString();
+                Gson gson = new Gson();
+                JsonObject data = gson.fromJson(requestBody, JsonObject.class);
+
+                int numeroCuenta = data.get("numeroCuenta").getAsInt();
+                int saldo = data.get("saldo").getAsInt();
+
+                // Realizar la actualización del saldo en la base de datos
+                String query = "UPDATE cliente SET saldo = saldo + ? WHERE numeroCuenta = ?";
+                try {
+                    PreparedStatement stmt = connection.prepareStatement(query);
+                    stmt.setInt(1, saldo);
+                    stmt.setInt(2, numeroCuenta);
+                    int affectedRows = stmt.executeUpdate();
+                    stmt.close();
+
+                    if (affectedRows > 0) {
+                        String response = "Consignación exitosa!";
+                        sendResponse(exchange, 200, response);
+                    } else {
+                        String response = "Número de cuenta no encontrado.";
+                        sendResponse(exchange, 404, response);
+                    }
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                    String response = "Error al realizar la consignación.";
+                    sendResponse(exchange, 500, response);
+                }
+            } else {
+                sendResponse(exchange, 405, "Method Not Allowed"); // 405 Method Not Allowed
+            }
+        }
+
+        private void handleOptions(HttpExchange exchange) throws IOException {
+            Headers headers = exchange.getResponseHeaders();
+            headers.add("Access-Control-Allow-Origin", "*");
+            headers.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+            headers.add("Access-Control-Allow-Headers", "Content-Type");
+            exchange.sendResponseHeaders(204, -1);
+        }
+
+        private void sendResponse(HttpExchange exchange, int statusCode, String response) throws IOException {
+            Headers headers = exchange.getResponseHeaders();
+            headers.add("Access-Control-Allow-Origin", "*");
+            byte[] responseBytes = response.getBytes("UTF-8");
+            exchange.sendResponseHeaders(statusCode, responseBytes.length);
+            OutputStream os = exchange.getResponseBody();
+            os.write(responseBytes);
             os.close();
         }
     }

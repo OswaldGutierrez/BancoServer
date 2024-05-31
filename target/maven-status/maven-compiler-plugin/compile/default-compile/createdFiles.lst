@@ -3,3 +3,4 @@ com\mycompany\bancomvn\SimpleWebServer$MyHandler.class
 com\mycompany\bancomvn\SimpleWebServer$loginHandler.class
 com\mycompany\bancomvn\SimpleWebServer$traerRegistroHandler.class
 com\mycompany\bancomvn\SimpleWebServer.class
+com\mycompany\bancomvn\SimpleWebServer$consignarHandler.class

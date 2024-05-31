@@ -268,8 +268,9 @@ public class SimpleWebServer {
         }
     }
 
+    
+    
     static class consignarHandler implements HttpHandler {
-
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             // Manejo de solicitudes OPTIONS para CORS

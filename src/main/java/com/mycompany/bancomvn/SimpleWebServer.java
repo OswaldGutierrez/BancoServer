@@ -36,8 +36,9 @@ public class SimpleWebServer {
 
         // Definir los contextos (rutas) y los manejadores (handlers) que responderán a las peticiones
         server.createContext("/", new MyHandler());
-        server.createContext("/registro", new RegistroHandler());
-        server.createContext("/traer-registro", new TraerRegistroHandler());
+        server.createContext("/registro", new registroHandler());
+        server.createContext("/traer-registro", new traerRegistroHandler());
+        server.createContext("/login", new loginHandler());
 
         // Configurar el executor (null indica que usará el executor por defecto)
         server.setExecutor(null);
@@ -61,7 +62,7 @@ public class SimpleWebServer {
     }
 
     // Crear una clase que implementa HttpHandler para manejar el registro
-    static class RegistroHandler implements HttpHandler {
+    static class registroHandler implements HttpHandler {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
@@ -131,7 +132,7 @@ public class SimpleWebServer {
         }
     }
 
-    static class TraerRegistroHandler implements HttpHandler {
+    static class traerRegistroHandler implements HttpHandler {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
@@ -190,4 +191,80 @@ public class SimpleWebServer {
             os.close();
         }
     }
+
+    static class loginHandler implements HttpHandler {
+
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            // Manejo de solicitudes OPTIONS para CORS
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                handleOptions(exchange);
+                return;
+            }
+
+            if ("POST".equals(exchange.getRequestMethod())) {
+                InputStreamReader isr = new InputStreamReader(exchange.getRequestBody(), "utf-8");
+                BufferedReader br = new BufferedReader(isr);
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = br.readLine()) != null) {
+                    sb.append(line);
+                }
+                br.close();
+                isr.close();
+
+                String requestBody = sb.toString();
+                Gson gson = new Gson();
+                JsonObject data = gson.fromJson(requestBody, JsonObject.class);
+
+                String correo = data.get("correo").getAsString();
+                String contrasena = data.get("contrasena").getAsString();
+
+                String queryCorreo = "SELECT correo FROM cliente WHERE correo = ?;";
+                try {
+                    PreparedStatement stmt = connection.prepareStatement(queryCorreo);                // Permite hacer la consulta en la BD
+                    stmt.setString(1, correo);
+                    ResultSet rs = stmt.executeQuery();
+                    if (!rs.isBeforeFirst()) {
+                        sendResponse(exchange, 400, "Correo NO encontrado");
+                    }
+
+                    String queryContrasena = "SELECT contrasena FROM cliente WHERE contrasena = ? AND correo = ?;";
+                    PreparedStatement stmt1 = connection.prepareStatement(queryContrasena);                // Permite hacer la consulta en la BD
+                    stmt1.setString(1, contrasena);
+                    stmt1.setString(2, correo);
+                    ResultSet rs1 = stmt1.executeQuery();
+                    if (!rs1.isBeforeFirst()) {
+                        sendResponse(exchange, 400, "Contrasena incorrecta");
+                    }
+
+                    sendResponse(exchange, 200, "Ingreso exitoso");
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                    String response = "Error al hacer login.";
+                    sendResponse(exchange, 500, response);
+                }
+            } else {
+                sendResponse(exchange, 405, "Method Not Allowed"); // 405 Method Not Allowed
+            }
+        }
+
+        private void handleOptions(HttpExchange exchange) throws IOException {
+            Headers headers = exchange.getResponseHeaders();
+            headers.add("Access-Control-Allow-Origin", "*");
+            headers.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+            headers.add("Access-Control-Allow-Headers", "Content-Type");
+            exchange.sendResponseHeaders(204, -1);
+        }
+
+        private void sendResponse(HttpExchange exchange, int statusCode, String response) throws IOException {
+            Headers headers = exchange.getResponseHeaders();
+            headers.add("Access-Control-Allow-Origin", "*");
+            exchange.sendResponseHeaders(statusCode, response.length());
+            OutputStream os = exchange.getResponseBody();
+            os.write(response.getBytes());
+            os.close();
+        }
+    }
+
 }

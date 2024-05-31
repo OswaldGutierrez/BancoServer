@@ -61,6 +61,7 @@ public class SimpleWebServer {
         }
     }
 
+    
     // Crear una clase que implementa HttpHandler para manejar el registro
     static class registroHandler implements HttpHandler {
 

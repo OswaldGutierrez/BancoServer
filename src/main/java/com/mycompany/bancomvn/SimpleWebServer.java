@@ -296,15 +296,28 @@ public class SimpleWebServer {
                 int saldo = data.get("saldo").getAsInt();
 
                 // Realizar la actualización del saldo en la base de datos
-                String query = "UPDATE cliente SET saldo = saldo + ? WHERE numeroCuenta = ?";
                 try {
-                    PreparedStatement stmt = connection.prepareStatement(query);
+                    String query = "INSERT INTO consignaciones(clienteId, valorConsignacion, fecha, tipo) VALUES"
+                            + "((SELECT id FROM cliente WHERE numeroCuenta = ?), ?, NOW(), 'consignacion')";
+                    PreparedStatement stmtInsert = connection.prepareStatement(query);
+                    stmtInsert.setInt(1, numeroCuenta);
+                    stmtInsert.setInt(2, saldo);
+                    int affectedRows = stmtInsert.executeUpdate();
+                    stmtInsert.close();
+
+                    if (affectedRows == 0) {
+                        String response = "Falla al crear la consignación";
+                        sendResponse(exchange, 404, response);
+                    }
+
+                    String queryUpdate = "UPDATE cliente SET saldo = saldo + ? WHERE numeroCuenta = ?";
+                    PreparedStatement stmt = connection.prepareStatement(queryUpdate);
                     stmt.setInt(1, saldo);
                     stmt.setInt(2, numeroCuenta);
-                    int affectedRows = stmt.executeUpdate();
+                    int affectedRows1 = stmt.executeUpdate();
                     stmt.close();
 
-                    if (affectedRows > 0) {
+                    if (affectedRows1 > 0) {
                         String response = "Consignación exitosa!";
                         sendResponse(exchange, 200, response);
                     } else {
@@ -369,15 +382,28 @@ public class SimpleWebServer {
                 int saldoRetirar = data.get("saldoRetirar").getAsInt();
 
                 // Realizar la actualización del saldo en la base de datos
-                String query = "UPDATE cliente SET saldo = saldo - ? WHERE numeroCuenta = ?";
                 try {
-                    PreparedStatement stmt = connection.prepareStatement(query);
-                    stmt.setInt(1, saldoRetirar);
-                    stmt.setInt(2, numeroCuentaRetirar);
-                    int affectedRows = stmt.executeUpdate();
-                    stmt.close();
+                    String query = "INSERT INTO consignaciones(clienteId, valorConsignacion, fecha, tipo) VALUES"
+                            + "((SELECT id FROM cliente WHERE numeroCuenta = ?), ?, NOW(), 'retiro')";
+                    PreparedStatement stmtInsert = connection.prepareStatement(query);
+                    stmtInsert.setInt(1, numeroCuentaRetirar);
+                    stmtInsert.setInt(2, saldoRetirar);
+                    int affectedRows = stmtInsert.executeUpdate();
+                    stmtInsert.close();
 
-                    if (affectedRows > 0) {
+                    if (affectedRows == 0) {
+                        String response = "Falla al crear la consignación";
+                        sendResponse(exchange, 404, response);
+                    }
+
+                    String queryUpdate = "UPDATE cliente SET saldo = saldo - ? WHERE numeroCuenta = ?";
+                    PreparedStatement stmtUpdate = connection.prepareStatement(queryUpdate);
+                    stmtUpdate.setInt(1, saldoRetirar);
+                    stmtUpdate.setInt(2, numeroCuentaRetirar);
+                    int affectedRows1 = stmtUpdate.executeUpdate();
+                    stmtUpdate.close();
+
+                    if (affectedRows1 > 0) {
                         String response = "Retiro exitoso!";
                         sendResponse(exchange, 200, response);
                     } else {
@@ -412,68 +438,4 @@ public class SimpleWebServer {
             os.close();
         }
     }
-    
-    
-    
-    static class traerRegistroHandler implements HttpHandler {
-
-        @Override
-        public void handle(HttpExchange exchange) throws IOException {
-            // Manejo de solicitudes OPTIONS para CORS
-            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
-                handleOptions(exchange);
-                return;
-            }
-
-            if ("GET".equals(exchange.getRequestMethod())) {
-                try {
-                    // Realizar la consulta SQL para obtener los registros de cliente
-                    String query = "SELECT numeroCuenta, estado, saldo FROM cliente WHERE correo = ? AND contrasena = ?;";
-                    PreparedStatement stmt = connection.prepareStatement(query);
-                    ResultSet rs = stmt.executeQuery();
-
-                    // Convertir los resultados a JSON
-                    JsonArray jsonArray = new JsonArray();
-                    while (rs.next()) {
-                        JsonObject jsonObject = new JsonObject();
-                        jsonObject.addProperty("id", rs.getInt("id"));
-                        jsonObject.addProperty("nombre", rs.getString("nombre"));
-                        jsonObject.addProperty("correo", rs.getString("correo"));
-                        jsonObject.addProperty("edad", rs.getInt("edad"));
-                        // Agregar más campos si es necesario
-                        jsonArray.add(jsonObject);
-                    }
-
-                    // Enviar la respuesta JSON al cliente
-                    String jsonResponse = jsonArray.toString();
-                    sendResponse(exchange, 200, jsonResponse);
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                    String response = "Error al obtener los registros de cliente.";
-                    sendResponse(exchange, 500, response);
-                }
-            } else {
-                sendResponse(exchange, 405, "Method Not Allowed"); // 405 Method Not Allowed
-            }
-        }
-
-        private void handleOptions(HttpExchange exchange) throws IOException {
-            Headers headers = exchange.getResponseHeaders();
-            headers.add("Access-Control-Allow-Origin", "*");
-            headers.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-            headers.add("Access-Control-Allow-Headers", "Content-Type");
-            exchange.sendResponseHeaders(204, -1);
-        }
-
-        private void sendResponse(HttpExchange exchange, int statusCode, String response) throws IOException {
-            Headers headers = exchange.getResponseHeaders();
-            headers.add("Access-Control-Allow-Origin", "*");
-            exchange.sendResponseHeaders(statusCode, response.length());
-            OutputStream os = exchange.getResponseBody();
-            os.write(response.getBytes());
-            os.close();
-        }
-    }
-    
-
 }

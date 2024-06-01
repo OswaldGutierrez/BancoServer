@@ -198,7 +198,6 @@ public class SimpleWebServer {
 
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            // Manejo de solicitudes OPTIONS para CORS
             if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
                 handleOptions(exchange);
                 return;
@@ -222,25 +221,24 @@ public class SimpleWebServer {
                 String correo = data.get("correo").getAsString();
                 String contrasena = data.get("contrasena").getAsString();
 
-                String queryCorreo = "SELECT correo FROM cliente WHERE correo = ?;";
+                String query = "SELECT numeroCuenta, estado, saldo FROM cliente WHERE correo = ? AND contrasena = ?;";
                 try {
-                    PreparedStatement stmt = connection.prepareStatement(queryCorreo);                // Permite hacer la consulta en la BD
+                    PreparedStatement stmt = connection.prepareStatement(query);
                     stmt.setString(1, correo);
+                    stmt.setString(2, contrasena);
                     ResultSet rs = stmt.executeQuery();
-                    if (!rs.isBeforeFirst()) {
-                        sendResponse(exchange, 400, "Correo NO encontrado");
-                    }
 
-                    String queryContrasena = "SELECT contrasena FROM cliente WHERE contrasena = ? AND correo = ?;";
-                    PreparedStatement stmt1 = connection.prepareStatement(queryContrasena);                // Permite hacer la consulta en la BD
-                    stmt1.setString(1, contrasena);
-                    stmt1.setString(2, correo);
-                    ResultSet rs1 = stmt1.executeQuery();
-                    if (!rs1.isBeforeFirst()) {
-                        sendResponse(exchange, 400, "Contrasena incorrecta");
-                    }
+                    if (rs.next()) {
+                        JsonObject responseJson = new JsonObject();
+                        responseJson.addProperty("numeroCuenta", rs.getString("numeroCuenta"));
+                        responseJson.addProperty("estado", rs.getString("estado"));
+                        responseJson.addProperty("saldo", rs.getDouble("saldo"));
 
-                    sendResponse(exchange, 200, "Ingreso exitoso");
+                        sendResponse(exchange, 200, responseJson.toString());
+                    } else {
+                        sendResponse(exchange, 400, "Correo o contraseña incorrectos");
+                    }
+                    stmt.close();
                 } catch (SQLException e) {
                     e.printStackTrace();
                     String response = "Error al hacer login.";
@@ -269,9 +267,8 @@ public class SimpleWebServer {
         }
     }
 
-    
-    
     static class consignarHandler implements HttpHandler {
+
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             // Manejo de solicitudes OPTIONS para CORS
@@ -342,10 +339,9 @@ public class SimpleWebServer {
             os.close();
         }
     }
-    
-    
-    
+
     static class retirarHandler implements HttpHandler {
+
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             // Manejo de solicitudes OPTIONS para CORS
@@ -416,5 +412,68 @@ public class SimpleWebServer {
             os.close();
         }
     }
+    
+    
+    
+    static class traerRegistroHandler implements HttpHandler {
+
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            // Manejo de solicitudes OPTIONS para CORS
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                handleOptions(exchange);
+                return;
+            }
+
+            if ("GET".equals(exchange.getRequestMethod())) {
+                try {
+                    // Realizar la consulta SQL para obtener los registros de cliente
+                    String query = "SELECT numeroCuenta, estado, saldo FROM cliente WHERE correo = ? AND contrasena = ?;";
+                    PreparedStatement stmt = connection.prepareStatement(query);
+                    ResultSet rs = stmt.executeQuery();
+
+                    // Convertir los resultados a JSON
+                    JsonArray jsonArray = new JsonArray();
+                    while (rs.next()) {
+                        JsonObject jsonObject = new JsonObject();
+                        jsonObject.addProperty("id", rs.getInt("id"));
+                        jsonObject.addProperty("nombre", rs.getString("nombre"));
+                        jsonObject.addProperty("correo", rs.getString("correo"));
+                        jsonObject.addProperty("edad", rs.getInt("edad"));
+                        // Agregar más campos si es necesario
+                        jsonArray.add(jsonObject);
+                    }
+
+                    // Enviar la respuesta JSON al cliente
+                    String jsonResponse = jsonArray.toString();
+                    sendResponse(exchange, 200, jsonResponse);
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                    String response = "Error al obtener los registros de cliente.";
+                    sendResponse(exchange, 500, response);
+                }
+            } else {
+                sendResponse(exchange, 405, "Method Not Allowed"); // 405 Method Not Allowed
+            }
+        }
+
+        private void handleOptions(HttpExchange exchange) throws IOException {
+            Headers headers = exchange.getResponseHeaders();
+            headers.add("Access-Control-Allow-Origin", "*");
+            headers.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+            headers.add("Access-Control-Allow-Headers", "Content-Type");
+            exchange.sendResponseHeaders(204, -1);
+        }
+
+        private void sendResponse(HttpExchange exchange, int statusCode, String response) throws IOException {
+            Headers headers = exchange.getResponseHeaders();
+            headers.add("Access-Control-Allow-Origin", "*");
+            exchange.sendResponseHeaders(statusCode, response.length());
+            OutputStream os = exchange.getResponseBody();
+            os.write(response.getBytes());
+            os.close();
+        }
+    }
+    
 
 }

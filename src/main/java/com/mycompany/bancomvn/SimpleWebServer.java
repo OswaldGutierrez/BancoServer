@@ -298,16 +298,16 @@ public class SimpleWebServer {
                 Gson gson = new Gson();
                 JsonObject data = gson.fromJson(requestBody, JsonObject.class);
 
-                int numeroCuenta = data.get("numeroCuenta").getAsInt();
-                int saldo = data.get("saldo").getAsInt();
+                double numeroCuenta = data.get("numeroCuenta").getAsDouble();
+                double saldo = data.get("saldo").getAsDouble();
 
                 // Realizar la actualización del saldo en la base de datos
                 try {
                     String query = "INSERT INTO consignaciones(clienteId, valorConsignacion, fecha, tipo) VALUES"
                             + "((SELECT id FROM cliente WHERE numeroCuenta = ?), ?, NOW(), 'consignacion')";
                     PreparedStatement stmtInsert = connection.prepareStatement(query);
-                    stmtInsert.setInt(1, numeroCuenta);
-                    stmtInsert.setInt(2, saldo);
+                    stmtInsert.setDouble(1, numeroCuenta);
+                    stmtInsert.setDouble(2, saldo);
                     int affectedRows = stmtInsert.executeUpdate();
                     stmtInsert.close();
 
@@ -318,8 +318,8 @@ public class SimpleWebServer {
 
                     String queryUpdate = "UPDATE cliente SET saldo = saldo + ? WHERE numeroCuenta = ?";
                     PreparedStatement stmt = connection.prepareStatement(queryUpdate);
-                    stmt.setInt(1, saldo);
-                    stmt.setInt(2, numeroCuenta);
+                    stmt.setDouble(1, saldo);
+                    stmt.setDouble(2, numeroCuenta);
                     int affectedRows1 = stmt.executeUpdate();
                     stmt.close();
 
@@ -384,16 +384,16 @@ public class SimpleWebServer {
                 Gson gson = new Gson();
                 JsonObject data = gson.fromJson(requestBody, JsonObject.class);
 
-                int numeroCuentaRetirar = data.get("numeroCuentaRetirar").getAsInt();
-                int saldoRetirar = data.get("saldoRetirar").getAsInt();
+                double numeroCuentaRetirar = data.get("numeroCuentaRetirar").getAsDouble();
+                double saldoRetirar = data.get("saldoRetirar").getAsDouble();
 
                 // Realizar la actualización del saldo en la base de datos
                 try {
                     String query = "INSERT INTO consignaciones(clienteId, valorConsignacion, fecha, tipo) VALUES"
                             + "((SELECT id FROM cliente WHERE numeroCuenta = ?), ?, NOW(), 'retiro')";
                     PreparedStatement stmtInsert = connection.prepareStatement(query);
-                    stmtInsert.setInt(1, numeroCuentaRetirar);
-                    stmtInsert.setInt(2, saldoRetirar);
+                    stmtInsert.setDouble(1, numeroCuentaRetirar);
+                    stmtInsert.setDouble(2, saldoRetirar);
                     int affectedRows = stmtInsert.executeUpdate();
                     stmtInsert.close();
 
@@ -404,8 +404,8 @@ public class SimpleWebServer {
 
                     String queryUpdate = "UPDATE cliente SET saldo = saldo - ? WHERE numeroCuenta = ?";
                     PreparedStatement stmtUpdate = connection.prepareStatement(queryUpdate);
-                    stmtUpdate.setInt(1, saldoRetirar);
-                    stmtUpdate.setInt(2, numeroCuentaRetirar);
+                    stmtUpdate.setDouble(1, saldoRetirar);
+                    stmtUpdate.setDouble(2, numeroCuentaRetirar);
                     int affectedRows1 = stmtUpdate.executeUpdate();
                     stmtUpdate.close();
 

@@ -310,19 +310,18 @@ public class SimpleWebServer {
                     stmtInsert.setDouble(2, saldo);
                     int affectedRows = stmtInsert.executeUpdate();
                     stmtInsert.close();
-
                     if (affectedRows == 0) {
                         String response = "Falla al crear la consignación";
                         sendResponse(exchange, 404, response);
                     }
 
-                    String queryUpdate = "UPDATE cliente SET saldo = saldo + ? WHERE numeroCuenta = ?";
+                    String queryUpdate = "UPDATE cliente SET saldo = saldo + ? - (? * 0.01) WHERE numeroCuenta = ?";
                     PreparedStatement stmt = connection.prepareStatement(queryUpdate);
                     stmt.setDouble(1, saldo);
-                    stmt.setDouble(2, numeroCuenta);
+                    stmt.setDouble(2, saldo);
+                    stmt.setDouble(3, numeroCuenta);
                     int affectedRows1 = stmt.executeUpdate();
                     stmt.close();
-
                     if (affectedRows1 > 0) {
                         String response = "Consignación exitosa!";
                         sendResponse(exchange, 200, response);
@@ -330,6 +329,21 @@ public class SimpleWebServer {
                         String response = "Número de cuenta no encontrado.";
                         sendResponse(exchange, 404, response);
                     }
+                    
+                    String queryUpdateImpuestosMov = "UPDATE cliente SET impuestosMov = impuestosMov + (? * 0.01) WHERE numeroCuenta = ?";
+                    PreparedStatement stmtUpdateImpuestosMov = connection.prepareStatement(queryUpdateImpuestosMov);
+                    stmtUpdateImpuestosMov.setDouble(1, saldo);
+                    stmtUpdateImpuestosMov.setDouble(2, numeroCuenta);
+                    int affectedRows2 = stmtUpdateImpuestosMov.executeUpdate();
+                    stmtUpdateImpuestosMov.close();
+                    if (affectedRows2 > 0) {
+                        String response = "Retiro exitoso!";
+                        sendResponse(exchange, 200, response);
+                    } else {
+                        String response = "Número de cuenta no encontrado.";
+                        sendResponse(exchange, 404, response);
+                    }
+                    
                 } catch (SQLException e) {
                     e.printStackTrace();
                     String response = "Error al realizar la consignación.";
@@ -396,19 +410,18 @@ public class SimpleWebServer {
                     stmtInsert.setDouble(2, saldoRetirar);
                     int affectedRows = stmtInsert.executeUpdate();
                     stmtInsert.close();
-
                     if (affectedRows == 0) {
                         String response = "Falla al crear la consignación";
                         sendResponse(exchange, 404, response);
                     }
 
-                    String queryUpdate = "UPDATE cliente SET saldo = saldo - ? WHERE numeroCuenta = ?";
+                    String queryUpdate = "UPDATE cliente SET saldo = saldo - ? - (? * 0.01) WHERE numeroCuenta = ?";
                     PreparedStatement stmtUpdate = connection.prepareStatement(queryUpdate);
                     stmtUpdate.setDouble(1, saldoRetirar);
-                    stmtUpdate.setDouble(2, numeroCuentaRetirar);
+                    stmtUpdate.setDouble(2, saldoRetirar);
+                    stmtUpdate.setDouble(3, numeroCuentaRetirar);
                     int affectedRows1 = stmtUpdate.executeUpdate();
                     stmtUpdate.close();
-
                     if (affectedRows1 > 0) {
                         String response = "Retiro exitoso!";
                         sendResponse(exchange, 200, response);
@@ -416,6 +429,21 @@ public class SimpleWebServer {
                         String response = "Número de cuenta no encontrado.";
                         sendResponse(exchange, 404, response);
                     }
+
+                    String queryUpdateImpuestosMov = "UPDATE cliente SET impuestosMov = impuestosMov + (? * 0.01) WHERE numeroCuenta = ?";
+                    PreparedStatement stmtUpdateImpuestosMov = connection.prepareStatement(queryUpdateImpuestosMov);
+                    stmtUpdateImpuestosMov.setDouble(1, saldoRetirar);
+                    stmtUpdateImpuestosMov.setDouble(2, numeroCuentaRetirar);
+                    int affectedRows2 = stmtUpdateImpuestosMov.executeUpdate();
+                    stmtUpdateImpuestosMov.close();
+                    if (affectedRows2 > 0) {
+                        String response = "Retiro exitoso!";
+                        sendResponse(exchange, 200, response);
+                    } else {
+                        String response = "Número de cuenta no encontrado.";
+                        sendResponse(exchange, 404, response);
+                    }
+
                 } catch (SQLException e) {
                     e.printStackTrace();
                     String response = "Error al realizar el retiro.";

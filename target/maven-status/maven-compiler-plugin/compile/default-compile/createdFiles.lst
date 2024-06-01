@@ -5,3 +5,4 @@ com\mycompany\bancomvn\SimpleWebServer$retirarHandler.class
 com\mycompany\bancomvn\SimpleWebServer$registroHandler.class
 com\mycompany\bancomvn\SimpleWebServer$MyHandler.class
 com\mycompany\bancomvn\SimpleWebServer$traerRegistroHandler.class
+com\mycompany\bancomvn\SimpleWebServer$TransaccionesHandler.class

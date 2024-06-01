@@ -41,6 +41,7 @@ public class SimpleWebServer {
         server.createContext("/login", new loginHandler());
         server.createContext("/consignar", new consignarHandler());
         server.createContext("/retirar", new retirarHandler());
+        server.createContext("/transacciones", new TransaccionesHandler());
 
         // Configurar el executor (null indica que usará el executor por defecto)
         server.setExecutor(null);
@@ -236,13 +237,17 @@ public class SimpleWebServer {
 
                         sendResponse(exchange, 200, responseJson.toString());
                     } else {
-                        sendResponse(exchange, 400, "Correo o contraseña incorrectos");
+                        JsonObject responseJson = new JsonObject();
+                        responseJson.addProperty("mensaje", "Correo o contraseña incorrectos");
+                        sendResponse(exchange, 400, responseJson.toString());
                     }
+                    rs.close();
                     stmt.close();
                 } catch (SQLException e) {
                     e.printStackTrace();
-                    String response = "Error al hacer login.";
-                    sendResponse(exchange, 500, response);
+                    JsonObject responseJson = new JsonObject();
+                    responseJson.addProperty("mensaje", "Error al hacer login.");
+                    sendResponse(exchange, 500, responseJson.toString());
                 }
             } else {
                 sendResponse(exchange, 405, "Method Not Allowed"); // 405 Method Not Allowed
@@ -260,7 +265,8 @@ public class SimpleWebServer {
         private void sendResponse(HttpExchange exchange, int statusCode, String response) throws IOException {
             Headers headers = exchange.getResponseHeaders();
             headers.add("Access-Control-Allow-Origin", "*");
-            exchange.sendResponseHeaders(statusCode, response.length());
+            headers.add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(statusCode, response.getBytes().length);
             OutputStream os = exchange.getResponseBody();
             os.write(response.getBytes());
             os.close();
@@ -438,4 +444,105 @@ public class SimpleWebServer {
             os.close();
         }
     }
+
+    // Clase para manejar la búsqueda de transacciones por mes
+    // Clase para manejar la búsqueda de transacciones por mes
+    static class TransaccionesHandler implements HttpHandler {
+
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            // Manejo de solicitudes OPTIONS para CORS
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                handleOptions(exchange);
+                return;
+            }
+
+            if ("GET".equals(exchange.getRequestMethod())) {
+                // Obtener el mes de la query string
+                String query = exchange.getRequestURI().getQuery();
+                String mes = null;
+                if (query != null && query.startsWith("mes=")) {
+                    mes = query.substring(4);
+                }
+
+                if (mes == null || mes.isEmpty()) {
+                    sendResponse(exchange, 400, "Debe seleccionar un mes válido.");
+                    return;
+                }
+
+                try {
+                    // Realizar la consulta SQL para obtener las transacciones del mes
+                    String queryTransacciones = "SELECT id, clienteId, valorConsignacion, fecha, tipo "
+                            + "FROM consignaciones "
+                            + "WHERE MONTH(fecha) = ?";
+                    PreparedStatement stmt = connection.prepareStatement(queryTransacciones);
+                    stmt.setString(1, obtenerNumeroMes(mes));
+                    ResultSet rs = stmt.executeQuery();
+
+                    // Convertir los resultados a JSON
+                    JsonArray jsonArray = new JsonArray();
+                    while (rs.next()) {
+                        JsonObject jsonObject = new JsonObject();
+                        jsonObject.addProperty("id", rs.getInt("id"));
+                        jsonObject.addProperty("clienteId", rs.getInt("clienteId"));
+                        jsonObject.addProperty("valorConsignacion", rs.getDouble("valorConsignacion"));
+                        jsonObject.addProperty("fecha", rs.getString("fecha"));
+                        jsonObject.addProperty("tipo", rs.getString("tipo"));
+                        jsonArray.add(jsonObject);
+                    }
+
+                    // Enviar la respuesta JSON al cliente
+                    String jsonResponse = jsonArray.toString();
+                    sendResponse(exchange, 200, jsonResponse);
+
+                    // Cerrar recursos
+                    rs.close();
+                    stmt.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                    String response = "Error al obtener las transacciones.";
+                    sendResponse(exchange, 500, response);
+                }
+            } else {
+                sendResponse(exchange, 405, "Method Not Allowed"); // 405 Method Not Allowed
+            }
+        }
+
+        private void handleOptions(HttpExchange exchange) throws IOException {
+            Headers headers = exchange.getResponseHeaders();
+            headers.add("Access-Control-Allow-Origin", "*");
+            headers.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+            headers.add("Access-Control-Allow-Headers", "Content-Type");
+            exchange.sendResponseHeaders(204, -1);
+        }
+
+        private void sendResponse(HttpExchange exchange, int statusCode, String response) throws IOException {
+            Headers headers = exchange.getResponseHeaders();
+            headers.add("Access-Control-Allow-Origin", "*");
+            exchange.sendResponseHeaders(statusCode, response.getBytes().length);
+            OutputStream os = exchange.getResponseBody();
+            os.write(response.getBytes());
+            os.close();
+        }
+
+        private String obtenerNumeroMes(String mes) {
+            switch (mes) {
+                case "enero":
+                    return "01";
+                case "febrero":
+                    return "02";
+                case "marzo":
+                    return "03";
+                case "abril":
+                    return "04";
+                case "mayo":
+                    return "05";
+                case "junio":
+                    return "06";
+                default:
+                    return "01"; // Por defecto, enero
+            }
+        }
+    }
+
 }

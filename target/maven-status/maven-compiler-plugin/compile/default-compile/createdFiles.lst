@@ -1,4 +1,5 @@
 com\mycompany\bancomvn\SimpleWebServer$loginHandler.class
+com\mycompany\bancomvn\SimpleWebServer$clientesHandler.class
 com\mycompany\bancomvn\SimpleWebServer.class
 com\mycompany\bancomvn\SimpleWebServer$consignarHandler.class
 com\mycompany\bancomvn\SimpleWebServer$retirarHandler.class
